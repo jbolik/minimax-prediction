@@ -44,20 +44,7 @@ def log_pred(xp, yp, x, y):
     main = -(o-1)/2*slogdet(Gxy1p)[1] - slogdet(Gy1p)[1]
     return cons + cons_xy + main
 
-@jax.jit
 def log_pred_ij(xp, yp, x, y):
-    assert len(x) == len(y)
-    n = len(y)
-    X = jnp.vstack((x, y))
-    xyp = jnp.array([xp, yp])
-    mean = jnp.mean(X, 1)
-    S = jnp.cov(X)
-    cons = jnp.log(n-2) - jnp.log(2*jnp.pi) + jnp.log(n) - jnp.log(n+1)
-    cons_xy = (n-1)/2 * slogdet((n-1) * S)[1]
-    main = -(n/2) * slogdet((n-1)*S + (n / (n+1)) * jnp.outer(mean - xyp, mean - xyp))[1]
-    return cons + cons_xy + main
-
-def log_pred_ij_alt(xp, yp, x, y):
     assert len(x) == len(y)
     n = len(y)
     X = jnp.vstack((x, y))
@@ -122,8 +109,6 @@ for result in results:
 
 # x = jnp.array([1, 2, 3], float)
 # y = jnp.array([-2, 3, 1], float)
-# print(log_pred_ij(1., 1., x, y))
-# print(log_pred_ij_alt(1., 1., x, y))
 
 # # Generate x and y values
 # xpts = np.linspace(-10, 10, 500)
