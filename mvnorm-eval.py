@@ -96,35 +96,40 @@ def mc_estimate_risk(key, m, n, a, b, c):
         log_pdf(xp, yp, m, n, a, b, c) - log_pred_plug_in(xp, yp, x, y, 1),
         log_pdf(xp, yp, m, n, a, b, c) - log_pred_plug_in(xp, yp, x, y, 0))
 
-samples = 8192*256
-keys = jax.random.split(jax.random.PRNGKey(0), samples)
-# results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, 1, 2, 1, -3, 4)
-results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, -2, 5, 2, 2)
-# results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, 7, -5, 8, -8, 3)
-# print(jnp.mean(results))
-for result in results:
-    print("{0:.3g}".format(jnp.nanmean(result)))
-# print(jnp.mean(jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, 5, 2, 7, 1)))
-# print(jnp.sum(jnp.isnan(jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, 5, 2, 7, 1))))
+# samples = 8192*256
+# keys = jax.random.split(jax.random.PRNGKey(0), samples)
+# # results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, 1, 2, 1, -3, 4)
+# results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, -2, 5, 2, 2)
+# # results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, 7, -5, 8, -8, 3)
+# # print(jnp.mean(results))
+# for result in results:
+#     print("{0:.3g}".format(jnp.nanmean(result)))
+# # print(jnp.mean(jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, 5, 2, 7, 1)))
+# # print(jnp.sum(jnp.isnan(jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, 5, 2, 7, 1))))
 
-# x = jnp.array([1, 2, 3], float)
-# y = jnp.array([-2, 3, 1], float)
+x = jnp.array([1, 2, 3], float)
+y = jnp.array([-2, 3, 1], float)
+X = jnp.vstack((x, y))
+mean = jnp.mean(X, 1)
 
-# # Generate x and y values
-# xpts = np.linspace(-10, 10, 500)
-# ypts = np.linspace(-10, 10, 500)
-# X, Y = np.meshgrid(xpts, ypts)
+# Generate x and y values
+xpts = np.linspace(-10, 10, 500)
+ypts = np.linspace(-10, 10, 500)
+X, Y = np.meshgrid(xpts, ypts)
 
-# # Compute the function values
-# def f(xp, yp):
-#     return log_pred(xp, yp, x, y)
-# Z = jax.vmap(jax.vmap(f, 0), 1)(X, Y)
+# Compute the function values
+def f(xp, yp):
+    return log_pred(xp, yp, x, y)
+Z = jax.vmap(jax.vmap(f, (0, 0)), (0, 0))(X, Y)
 
-# # Plot the function
-# plt.figure(figsize=(8, 6))
-# contour = plt.contourf(X, Y, Z, levels=50, cmap='viridis')
-# plt.colorbar(contour, label='f(x, y)')
-# plt.xlabel('x')
-# plt.ylabel('y')
+# Plot the function
+plt.figure(figsize=(7.5, 6))
+contour = plt.contourf(X, Y, Z, levels=10, cmap='viridis')
+# plt.colorbar(contour, label='log predictive density')
+plt.colorbar(contour)
+plt.scatter(x, y, c='black')
+# plt.scatter(mean[0], mean[1], c='red')
+plt.xlabel('x')
+plt.ylabel('y')
 # plt.axis('equal')  # To maintain aspect ratio
-# plt.show()
+plt.show()
