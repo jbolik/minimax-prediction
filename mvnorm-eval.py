@@ -4,29 +4,7 @@ from jax.numpy.linalg import slogdet
 from jax.scipy.stats import multivariate_normal as mvtn
 import matplotlib.pyplot as plt
 import numpy as np
-from jax.scipy.special import gammaln
-from functools import partial
-
-@jax.jit
-def t_logpdf(x, loc, shape, dof):
-    dim = len(x)
-    dev = x - loc
-    L = jax.scipy.linalg.cholesky(shape, lower=True)
-    log_pdet = 2 * jnp.sum(jnp.log(jnp.diag(L)))
-    y = jnp.vectorize(
-        partial(jax.lax.linalg.triangular_solve, lower=True, transpose_a=True),
-        signature="(n,n),(n)->(n)"
-      )(L, dev)
-    maha = jnp.sum(jnp.square(y))
-
-    t = 0.5 * (dof + dim)
-    A = gammaln(t)
-    B = gammaln(0.5 * dof)
-    C = dim/2. * jnp.log(dof * jnp.pi)
-    D = 0.5 * log_pdet
-    E = -t * jnp.log(1 + (1. / dof) * maha)
-
-    return A - B - C - D + E
+from t import t_logpdf
 
 @jax.jit
 def log_pred(xp, yp, x, y):
@@ -87,7 +65,7 @@ def mc_estimate_risk(key, m, n, a, b, c):
     samples = jax.vmap(sample, (0, None, None, None, None, None))(jax.random.split(key, o+1), m, n, a, b, c)
     xp, yp = samples[0, 0], samples[0, 1]
     x, y = samples[1:, 0], samples[1:, 1]
-    # return log_pred(xp, yp, x, y) - log_pred_ij(xp, yp, x, y)
+    return log_pred(xp, yp, x, y) - log_pred(yp, xp, y, x)
     # return log_pred(xp, yp, x, y) - log_pred_plug_in(xp, yp, x, y)
     return (
         # log_pdf(xp, yp, m, n, a, b, c) - log_pred(xp, yp, x, y),
@@ -96,14 +74,14 @@ def mc_estimate_risk(key, m, n, a, b, c):
         log_pdf(xp, yp, m, n, a, b, c) - log_pred_plug_in(xp, yp, x, y, 1),
         log_pdf(xp, yp, m, n, a, b, c) - log_pred_plug_in(xp, yp, x, y, 0))
 
-# samples = 8192*256
+# samples = 8192
 # keys = jax.random.split(jax.random.PRNGKey(0), samples)
 # # results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, 1, 2, 1, -3, 4)
 # results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, -2, 5, 2, 2)
 # # results = jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, 7, -5, 8, -8, 3)
-# # print(jnp.mean(results))
-# for result in results:
-#     print("{0:.3g}".format(jnp.nanmean(result)))
+# print(jnp.nanmean(results))
+# # for result in results:
+# #     print("{0:.3g}".format(jnp.nanmean(result)))
 # # print(jnp.mean(jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, 5, 2, 7, 1)))
 # # print(jnp.sum(jnp.isnan(jax.vmap(mc_estimate_risk, (0, None, None, None, None, None))(keys, -3, 5, 2, 7, 1))))
 
@@ -119,17 +97,25 @@ X, Y = np.meshgrid(xpts, ypts)
 
 # Compute the function values
 def f(xp, yp):
-    return log_pred(xp, yp, x, y)
+
+    # return log_pred(xp, yp, x, y)
+    # return log_pred(xp, xp + yp, x, x + y)
+    return log_pred(xp + yp, yp, x + y, y)
+    # return jnp.exp(log_pred(xp, yp, y, x))
 Z = jax.vmap(jax.vmap(f, (0, 0)), (0, 0))(X, Y)
 
 # Plot the function
+# plt.figure(figsize=(6, 6))
+# contour = plt.imshow(Z, origin='lower', cmap='gray',
+#            extent=[-10., 10., -10., 10.])
 plt.figure(figsize=(7.5, 6))
 contour = plt.contourf(X, Y, Z, levels=10, cmap='viridis')
-# plt.colorbar(contour, label='log predictive density')
-plt.colorbar(contour)
-plt.scatter(x, y, c='black')
-# plt.scatter(mean[0], mean[1], c='red')
-plt.xlabel('x')
-plt.ylabel('y')
+plt.colorbar(contour, label='log predictive density')
+# plt.colorbar(contour)
+
+plt.scatter(x, y, c='red')
+# plt.xlabel('x')
+# plt.ylabel('y')
 # plt.axis('equal')  # To maintain aspect ratio
-plt.show()
+# plt.show()
+plt.savefig('figures/mine_test2.pdf', transparent=True, bbox_inches='tight', pad_inches=0)

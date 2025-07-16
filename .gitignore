@@ -1,1 +1,4 @@
 .vscode/launch.json
+figures
+.vscode/settings.json
+*.pyc
