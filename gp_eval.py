@@ -6,6 +6,7 @@ from jax.scipy.stats import multivariate_normal as mvtn
 import matplotlib.pyplot as plt
 import numpy as np
 from t import t_logpdf
+from tqdm import tqdm
 
 # %%
 def rbf_kernel(X1: jnp.ndarray,
@@ -55,21 +56,32 @@ def log_pred_plug_in(yp, Xp, yo, Xo, dof):
 # %%
 # numerically evaluate predictive procedures against knowing true parameters
 n, p = 4, 2
+Xot = jax.random.uniform(jax.random.PRNGKey(0), (n, p))
+Xpt = jax.random.uniform(jax.random.PRNGKey(0), (1, p))
+# a, b = jnp.array(2, float), jax.random.uniform(jax.random.PRNGKey(42), (p,))
+a, b = jnp.array(3, float), jnp.array([4, -5], float)
+
 @jax.jit
 def mc_estimate_risk(key, Xo, Xp, amplitude, beta):
-    samples = jax.vmap(sample, (0, None, None, None, None))(jax.random.split(key, n+1), Xp, lengthscale, amplitude, beta)[:, 0]
+    X = jnp.vstack((Xo, Xp))
+    samples = sample(key, X, lengthscale, amplitude, beta)
     yo, yp = samples[:n], samples[n:]
-    true_pdf = log_pdf(yp, Xp, lengthscale, amplitude, beta)
+    # conditional covariance in last dimension
+    cov = amplitude**2 * rbf_kernel(X, X, lengthscale)
+    mean_cond = Xp @ beta + cov[n:, :n] @ inv(cov[:n, :n]) @ (yo - Xo @ beta)
+    cov_cond = cov[n:, n:] - cov[n:, :n] @ inv(cov[:n, :n]) @ cov[:n, n:]
+    true_pdf = mvtn.logpdf(yp, mean_cond, cov_cond)
     return jnp.array([
         true_pdf - log_pred(yp, Xp, yo, Xo, dof=n-p),
         true_pdf - log_pred(yp, Xp, yo, Xo, dof=n),
         true_pdf - log_pred_plug_in(yp, Xp, yo, Xo, dof=n-p),
         true_pdf - log_pred_plug_in(yp, Xp, yo, Xo, dof=n)])
 
-a, b = jnp.array(20, float), jnp.array([11, 31], float)
+# a, b = jnp.array(20, float), jnp.array([11, 31], float)
 
-Xot = jnp.array([[0, 0], [-10, 0], [0, 1], [2, 3]], float)
-Xpt = jnp.array([[1, 1]], float)
+
+# Xot = jnp.array([[0, 0], [-10, 0], [0, 1], [2, 3]], float)
+# Xpt = jnp.array([[1, 1]], float)
 
 # # check invariance of predictive procedures
 # yo = jnp.array([1, -2, 3, 5], float)
@@ -81,10 +93,10 @@ Xpt = jnp.array([[1, 1]], float)
 # # conclusion: the predictive procedures are invariant!
 
 samples = 8192 * 4
-iters = 2 ** 0
-key = jax.random.PRNGKey(0)
+iters = 2 ** 12
+key = jax.random.PRNGKey(42)
 scores, nans = jnp.zeros((4,)), jnp.zeros((4,))
-for i in range(iters):
+for i in tqdm(range(iters)):
     key_now, key = jax.random.split(key, 2)
     keys = jax.random.split(key_now, samples)
     results = jax.vmap(mc_estimate_risk, (0, None, None, None, None))(keys, Xot, Xpt, a, b)
