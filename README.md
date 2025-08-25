@@ -1,0 +1,1 @@
+This repository contains the code for the numerical simulations in the Arxiv preprint "Optimality of Right-Invariant Priors" (https://arxiv.org/abs/2412.12054). To run, install numpy, matplotlib, jax, and jax-tqdm.
